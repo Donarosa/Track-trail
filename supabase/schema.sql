@@ -94,13 +94,22 @@ ALTER TABLE public.training_blocks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.runner_assignments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.runner_results ENABLE ROW LEVEL SECURITY;
 
+-- Helper: obtener rol del usuario autenticado (SECURITY DEFINER evita recursión RLS)
+CREATE OR REPLACE FUNCTION public.auth_user_role()
+RETURNS TEXT
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+  SELECT role FROM public.users WHERE id = auth.uid()
+$$;
+
 -- ---------- USERS ----------
 
 -- Superadmin ve todo
 CREATE POLICY "superadmin_users_all" ON public.users
-  FOR ALL USING (
-    EXISTS (SELECT 1 FROM public.users u WHERE u.id = auth.uid() AND u.role = 'superadmin')
-  );
+  FOR ALL USING (public.auth_user_role() = 'superadmin');
 
 -- Runners ven solo su propio perfil
 CREATE POLICY "runner_users_select_own" ON public.users
@@ -123,9 +132,7 @@ CREATE POLICY "users_update_own" ON public.users
 
 -- Superadmin gestiona todo
 CREATE POLICY "superadmin_auth_trainers_all" ON public.authorized_trainers
-  FOR ALL USING (
-    EXISTS (SELECT 1 FROM public.users u WHERE u.id = auth.uid() AND u.role = 'superadmin')
-  );
+  FOR ALL USING (public.auth_user_role() = 'superadmin');
 
 -- Cualquier autenticado puede leer (para validar en login)
 CREATE POLICY "auth_trainers_select" ON public.authorized_trainers
@@ -135,9 +142,7 @@ CREATE POLICY "auth_trainers_select" ON public.authorized_trainers
 
 -- Superadmin ve todo
 CREATE POLICY "superadmin_trainings_all" ON public.trainings
-  FOR ALL USING (
-    EXISTS (SELECT 1 FROM public.users u WHERE u.id = auth.uid() AND u.role = 'superadmin')
-  );
+  FOR ALL USING (public.auth_user_role() = 'superadmin');
 
 -- Trainers CRUD sus propios entrenamientos
 CREATE POLICY "trainer_trainings_all" ON public.trainings
@@ -156,9 +161,7 @@ CREATE POLICY "runner_trainings_select" ON public.trainings
 
 -- Superadmin ve todo
 CREATE POLICY "superadmin_blocks_all" ON public.training_blocks
-  FOR ALL USING (
-    EXISTS (SELECT 1 FROM public.users u WHERE u.id = auth.uid() AND u.role = 'superadmin')
-  );
+  FOR ALL USING (public.auth_user_role() = 'superadmin');
 
 -- Trainers gestionan bloques de sus entrenamientos
 CREATE POLICY "trainer_blocks_all" ON public.training_blocks
@@ -183,9 +186,7 @@ CREATE POLICY "runner_blocks_select" ON public.training_blocks
 
 -- Superadmin ve todo
 CREATE POLICY "superadmin_assignments_all" ON public.runner_assignments
-  FOR ALL USING (
-    EXISTS (SELECT 1 FROM public.users u WHERE u.id = auth.uid() AND u.role = 'superadmin')
-  );
+  FOR ALL USING (public.auth_user_role() = 'superadmin');
 
 -- Runners ven sus propias asignaciones
 CREATE POLICY "runner_assignments_select" ON public.runner_assignments
@@ -209,9 +210,7 @@ CREATE POLICY "trainer_assignments_all" ON public.runner_assignments
 
 -- Superadmin ve todo
 CREATE POLICY "superadmin_results_all" ON public.runner_results
-  FOR ALL USING (
-    EXISTS (SELECT 1 FROM public.users u WHERE u.id = auth.uid() AND u.role = 'superadmin')
-  );
+  FOR ALL USING (public.auth_user_role() = 'superadmin');
 
 -- Runners CRUD sus propios resultados
 CREATE POLICY "runner_results_all" ON public.runner_results
