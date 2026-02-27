@@ -51,12 +51,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const getSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      console.log('[Auth] Getting session...');
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      console.log('[Auth] Session:', session ? 'found' : 'none', sessionError?.message || '');
       setSession(session);
       setAuthUser(session?.user ?? null);
       if (session?.user) {
+        console.log('[Auth] Fetching profile for', session.user.id);
         await fetchProfile(session.user.id);
+        console.log('[Auth] Profile fetched');
       }
+      console.log('[Auth] Setting loading = false');
       setLoading(false);
     };
 

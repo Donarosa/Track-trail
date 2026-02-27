@@ -12,6 +12,8 @@ interface TrainingCardProps {
 export default function TrainingCard({ assignment }: TrainingCardProps) {
   const { training } = assignment;
 
+  if (!training) return null;
+
   return (
     <Link href={`/training/${assignment.id}`}>
       <Card className="hover:shadow-md transition-shadow cursor-pointer">
