@@ -18,10 +18,15 @@ const trainerNav: NavItem[] = [
 
 const runnerNav: NavItem[] = [
   { href: '/dashboard', label: 'Dashboard', icon: '📊' },
+  { href: '/profile', label: 'Perfil', icon: '👤' },
 ];
 
 const adminNav: NavItem[] = [
   { href: '/admin', label: 'Administración', icon: '⚙️' },
+];
+
+const profileNav: NavItem[] = [
+  { href: '/profile', label: 'Perfil', icon: '👤' },
 ];
 
 export default function Sidebar() {
@@ -33,9 +38,9 @@ export default function Sidebar() {
   let navItems: NavItem[] = [];
 
   if (profile.role === 'trainer') {
-    navItems = trainerNav;
+    navItems = [...trainerNav, ...profileNav];
   } else if (profile.role === 'superadmin') {
-    navItems = [...trainerNav, ...adminNav];
+    navItems = [...trainerNav, ...adminNav, ...profileNav];
   } else if (profile.role === 'runner') {
     navItems = runnerNav;
   }
