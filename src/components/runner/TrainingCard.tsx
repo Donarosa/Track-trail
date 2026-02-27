@@ -30,8 +30,8 @@ export default function TrainingCard({ assignment }: TrainingCardProps) {
               {training.training_blocks?.length ?? 0} bloques
             </p>
           </div>
-          <Badge variant={assignment.status === 'completed' ? 'success' : 'warning'}>
-            {assignment.status === 'completed' ? 'Completado' : 'Pendiente'}
+          <Badge variant={assignment.status === 'completed' ? 'success' : assignment.status === 'not_done' ? 'danger' : 'warning'}>
+            {assignment.status === 'completed' ? 'Completado' : assignment.status === 'not_done' ? 'No realizado' : 'Pendiente'}
           </Badge>
         </div>
       </Card>

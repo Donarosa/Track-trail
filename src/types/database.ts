@@ -1,7 +1,7 @@
 export type UserRole = 'superadmin' | 'trainer' | 'runner';
 export type UserStatus = 'active' | 'paused' | 'deleted';
 export type TrainingStatus = 'draft' | 'published';
-export type AssignmentStatus = 'pending' | 'completed';
+export type AssignmentStatus = 'pending' | 'completed' | 'not_done';
 export type BlockInputType = 'distance_time' | 'time' | 'distance' | 'comment'; // deprecated, kept for compat
 
 export interface User {

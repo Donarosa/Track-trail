@@ -58,7 +58,7 @@ CREATE TABLE public.runner_assignments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   training_id UUID NOT NULL REFERENCES public.trainings(id) ON DELETE CASCADE,
   runner_id UUID NOT NULL REFERENCES public.users(id),
-  status TEXT NOT NULL CHECK (status IN ('pending','completed')) DEFAULT 'pending',
+  status TEXT NOT NULL CHECK (status IN ('pending','completed','not_done')) DEFAULT 'pending',
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
