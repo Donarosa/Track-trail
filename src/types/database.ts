@@ -2,7 +2,7 @@ export type UserRole = 'superadmin' | 'trainer' | 'runner';
 export type UserStatus = 'active' | 'paused' | 'deleted';
 export type TrainingStatus = 'draft' | 'published';
 export type AssignmentStatus = 'pending' | 'completed';
-export type BlockInputType = 'distance_time' | 'time' | 'distance' | 'comment';
+export type BlockInputType = 'distance_time' | 'time' | 'distance' | 'comment'; // deprecated, kept for compat
 
 export interface User {
   id: string;
@@ -37,6 +37,9 @@ export interface TrainingBlock {
   training_id: string;
   block_name: string;
   input_type: BlockInputType;
+  has_distance: boolean;
+  has_time: boolean;
+  has_elevation: boolean;
   repetitions: number;
   order_index: number;
 }
@@ -55,6 +58,7 @@ export interface RunnerResult {
   block_id: string;
   value_distance: number | null;
   value_time: number | null;
+  value_elevation: number | null;
   comment: string | null;
   created_at: string;
 }

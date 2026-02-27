@@ -33,20 +33,18 @@ export default function LoginPage() {
     setError('');
     setMessage('');
 
-    // Si es entrenador, validar que esté autorizado
+    // Si es entrenador, validar que esté autorizado (via RPC para evitar RLS pre-auth)
     if (role === 'trainer') {
-      const { data: trainer } = await supabase
-        .from('authorized_trainers')
-        .select('id, status')
-        .eq('email', email)
-        .single();
+      const { data: result } = await supabase.rpc('is_authorized_trainer', {
+        p_email: email.trim().toLowerCase(),
+      });
 
-      if (!trainer) {
+      if (!result || result.length === 0) {
         setError('Este email no está autorizado como entrenador.');
         setLoading(false);
         return;
       }
-      if (trainer.status === 'paused') {
+      if (result[0].status === 'paused') {
         setError('Tu cuenta de entrenador está pausada. Contacta al administrador.');
         setLoading(false);
         return;
@@ -57,6 +55,7 @@ export default function LoginPage() {
       email,
       options: {
         shouldCreateUser: true,
+        emailRedirectTo: `${window.location.origin}/callback`,
       },
     });
 

@@ -9,6 +9,7 @@ import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import BlockEditor, { type BlockData } from '@/components/trainer/BlockEditor';
 import type { Training, TrainingBlock } from '@/types/database';
+// BlockInputType derivado automáticamente de toggles
 
 interface TrainingFormProps {
   training?: Training;
@@ -27,11 +28,12 @@ export default function TrainingForm({ training, existingBlocks }: TrainingFormP
     existingBlocks?.map((b) => ({
       id: b.id,
       block_name: b.block_name,
-      input_type: b.input_type,
-      repetitions: b.repetitions,
+      has_distance: b.has_distance ?? false,
+      has_time: b.has_time ?? false,
+      has_elevation: b.has_elevation ?? false,
       order_index: b.order_index,
     })) ?? [
-      { block_name: '', input_type: 'distance_time', repetitions: 1, order_index: 0 },
+      { block_name: '', has_distance: true, has_time: true, has_elevation: false, order_index: 0 },
     ]
   );
   const [saving, setSaving] = useState(false);
@@ -42,7 +44,7 @@ export default function TrainingForm({ training, existingBlocks }: TrainingFormP
   const addBlock = () => {
     setBlocks([
       ...blocks,
-      { block_name: '', input_type: 'distance_time', repetitions: 1, order_index: blocks.length },
+      { block_name: '', has_distance: true, has_time: true, has_elevation: false, order_index: blocks.length },
     ]);
   };
 
@@ -116,13 +118,24 @@ export default function TrainingForm({ training, existingBlocks }: TrainingFormP
       }
 
       // Insertar bloques
-      const blocksToInsert = blocks.map((b, i) => ({
-        training_id: trainingId!,
-        block_name: b.block_name,
-        input_type: b.input_type,
-        repetitions: b.repetitions,
-        order_index: i,
-      }));
+      const blocksToInsert = blocks.map((b, i) => {
+        // Derivar input_type para backward compat
+        let input_type = 'comment';
+        if (b.has_distance && b.has_time) input_type = 'distance_time';
+        else if (b.has_distance) input_type = 'distance';
+        else if (b.has_time) input_type = 'time';
+
+        return {
+          training_id: trainingId!,
+          block_name: b.block_name,
+          input_type,
+          has_distance: b.has_distance,
+          has_time: b.has_time,
+          has_elevation: b.has_elevation,
+          repetitions: 1,
+          order_index: i,
+        };
+      });
 
       const { error: blocksError } = await supabase
         .from('training_blocks')
@@ -141,7 +154,9 @@ export default function TrainingForm({ training, existingBlocks }: TrainingFormP
       router.push('/trainings');
       router.refresh();
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Error al guardar';
+      const message = err instanceof Error
+        ? err.message
+        : (err as { message?: string })?.message || JSON.stringify(err);
       setError(message);
     } finally {
       setSaving(false);
@@ -159,12 +174,19 @@ export default function TrainingForm({ training, existingBlocks }: TrainingFormP
             placeholder="Ej: Entrenamiento de fondo"
             required
           />
-          <Input
-            label="Descripción (opcional)"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Breve descripción del entrenamiento"
-          />
+          <div className="flex flex-col gap-1">
+            <label htmlFor="description" className="text-sm font-medium text-foreground">
+              Descripción
+            </label>
+            <textarea
+              id="description"
+              rows={2}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Breve descripción del entrenamiento"
+              className="w-full px-3 py-2 rounded-lg border border-highlight/50 bg-tt-white text-foreground placeholder:text-foreground/40 focus:outline-none focus:ring-2 focus:ring-secondary focus:border-transparent transition-all duration-200 resize-y"
+            />
+          </div>
           <Input
             label="Fecha"
             type="date"

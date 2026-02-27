@@ -66,7 +66,7 @@ function VerifyOtpForm() {
           placeholder="123456"
           value={code}
           onChange={(e) => setCode(e.target.value)}
-          maxLength={6}
+          maxLength={8}
           required
           autoFocus
         />

@@ -45,7 +45,10 @@ CREATE TABLE public.training_blocks (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   training_id UUID NOT NULL REFERENCES public.trainings(id) ON DELETE CASCADE,
   block_name TEXT NOT NULL,
-  input_type TEXT NOT NULL CHECK (input_type IN ('distance_time','time','distance','comment')),
+  input_type TEXT NOT NULL CHECK (input_type IN ('distance_time','time','distance','comment')) DEFAULT 'comment',
+  has_distance BOOLEAN NOT NULL DEFAULT false,
+  has_time BOOLEAN NOT NULL DEFAULT false,
+  has_elevation BOOLEAN NOT NULL DEFAULT false,
   repetitions INT DEFAULT 1,
   order_index INT NOT NULL
 );
@@ -66,6 +69,7 @@ CREATE TABLE public.runner_results (
   block_id UUID NOT NULL REFERENCES public.training_blocks(id),
   value_distance NUMERIC,
   value_time NUMERIC,
+  value_elevation NUMERIC,
   comment TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -94,7 +98,7 @@ ALTER TABLE public.training_blocks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.runner_assignments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.runner_results ENABLE ROW LEVEL SECURITY;
 
--- Helper: obtener rol del usuario autenticado (SECURITY DEFINER evita recursión RLS)
+-- Helper: obtener rol del usuario autenticado (SECURITY DEFINER evita recursión RLS en users)
 CREATE OR REPLACE FUNCTION public.auth_user_role()
 RETURNS TEXT
 LANGUAGE sql
@@ -103,6 +107,20 @@ SECURITY DEFINER
 SET search_path = ''
 AS $$
   SELECT role FROM public.users WHERE id = auth.uid()
+$$;
+
+-- Helper: verificar si el usuario actual es trainer de un training (evita recursión cruzada)
+CREATE OR REPLACE FUNCTION public.is_trainer_of(p_training_id UUID)
+RETURNS BOOLEAN
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.trainings
+    WHERE id = p_training_id AND trainer_id = auth.uid()
+  )
 $$;
 
 -- ---------- USERS ----------
@@ -165,20 +183,14 @@ CREATE POLICY "superadmin_blocks_all" ON public.training_blocks
 
 -- Trainers gestionan bloques de sus entrenamientos
 CREATE POLICY "trainer_blocks_all" ON public.training_blocks
-  FOR ALL USING (
-    EXISTS (
-      SELECT 1 FROM public.trainings t
-      WHERE t.id = training_id AND t.trainer_id = auth.uid()
-    )
-  );
+  FOR ALL USING (public.is_trainer_of(training_id));
 
 -- Runners ven bloques de entrenamientos asignados
 CREATE POLICY "runner_blocks_select" ON public.training_blocks
   FOR SELECT USING (
     EXISTS (
       SELECT 1 FROM public.runner_assignments ra
-      JOIN public.trainings t ON t.id = ra.training_id
-      WHERE t.id = training_id AND ra.runner_id = auth.uid() AND t.status = 'published'
+      WHERE ra.training_id = training_id AND ra.runner_id = auth.uid()
     )
   );
 
@@ -199,12 +211,7 @@ CREATE POLICY "runner_assignments_update" ON public.runner_assignments
 
 -- Trainers ven y gestionan asignaciones de sus entrenamientos
 CREATE POLICY "trainer_assignments_all" ON public.runner_assignments
-  FOR ALL USING (
-    EXISTS (
-      SELECT 1 FROM public.trainings t
-      WHERE t.id = training_id AND t.trainer_id = auth.uid()
-    )
-  );
+  FOR ALL USING (public.is_trainer_of(training_id));
 
 -- ---------- RUNNER_RESULTS ----------
 
@@ -226,8 +233,7 @@ CREATE POLICY "trainer_results_select" ON public.runner_results
   FOR SELECT USING (
     EXISTS (
       SELECT 1 FROM public.runner_assignments ra
-      JOIN public.trainings t ON t.id = ra.training_id
-      WHERE ra.id = assignment_id AND t.trainer_id = auth.uid()
+      WHERE ra.id = assignment_id AND public.is_trainer_of(ra.training_id)
     )
   );
 
@@ -284,6 +290,20 @@ RETURNS TABLE (
   LIMIT 5;
 $$;
 
+-- Verificar si un email está autorizado como entrenador (accesible sin auth)
+CREATE OR REPLACE FUNCTION public.is_authorized_trainer(p_email TEXT)
+RETURNS TABLE (authorized BOOLEAN, status TEXT)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+  SELECT true, at.status
+  FROM public.authorized_trainers at
+  WHERE at.email = p_email
+  LIMIT 1;
+$$;
+
 -- Publicar entrenamiento y auto-asignar a runners activos
 CREATE OR REPLACE FUNCTION public.publish_training(p_training_id UUID)
 RETURNS void LANGUAGE plpgsql SECURITY DEFINER AS $$
@@ -309,12 +329,11 @@ BEGIN
   SET status = 'published'
   WHERE id = p_training_id;
 
-  -- Auto-asignar a todos los runners activos del trainer
+  -- Auto-asignar a TODOS los runners activos de la plataforma
   INSERT INTO public.runner_assignments (training_id, runner_id)
   SELECT p_training_id, u.id
   FROM public.users u
-  WHERE u.trainer_id = v_trainer_id
-    AND u.role = 'runner'
+  WHERE u.role = 'runner'
     AND u.status = 'active'
     AND NOT EXISTS (
       SELECT 1 FROM public.runner_assignments ra
