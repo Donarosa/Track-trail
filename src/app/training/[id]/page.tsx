@@ -77,6 +77,8 @@ export default function TrainingDetailPage() {
 
   const handleMarkNotDone = async () => {
     setUpdatingStatus(true);
+    // Delete any existing results before marking as not done
+    await supabase.from('runner_results').delete().eq('assignment_id', assignmentId);
     await supabase
       .from('runner_assignments')
       .update({ status: 'not_done' })
@@ -177,6 +179,14 @@ export default function TrainingDetailPage() {
                 className="w-full mt-4"
               >
                 Editar resultados
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={handleMarkNotDone}
+                loading={updatingStatus}
+                className="w-full mt-2 text-danger"
+              >
+                No realizado
               </Button>
             </div>
           )}
