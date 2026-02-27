@@ -417,6 +417,17 @@ BEGIN
     v_trainer_id
   );
 
+  -- Auto-asignar últimos 3 entrenamientos publicados a runners nuevos
+  IF v_role = 'runner' AND v_trainer_id IS NOT NULL THEN
+    INSERT INTO public.runner_assignments (training_id, runner_id)
+    SELECT t.id, NEW.id
+    FROM public.trainings t
+    WHERE t.status = 'published'
+      AND t.trainer_id = v_trainer_id
+    ORDER BY t.date DESC
+    LIMIT 3;
+  END IF;
+
   RETURN NEW;
 END;
 $$;
