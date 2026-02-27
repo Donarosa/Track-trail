@@ -88,7 +88,7 @@ export default function TrainingForm({ training, existingBlocks }: TrainingFormP
         // Si estamos editando un entrenamiento ya publicado, incrementar version
         const newVersion = training.status === 'published' ? training.version + 1 : training.version;
 
-        await supabase
+        const { error: updateError } = await supabase
           .from('trainings')
           .update({
             title,
@@ -98,8 +98,15 @@ export default function TrainingForm({ training, existingBlocks }: TrainingFormP
           })
           .eq('id', training.id);
 
+        if (updateError) throw updateError;
+
         // Eliminar bloques anteriores y recrear
-        await supabase.from('training_blocks').delete().eq('training_id', training.id);
+        const { error: deleteError } = await supabase
+          .from('training_blocks')
+          .delete()
+          .eq('training_id', training.id);
+
+        if (deleteError) throw deleteError;
       } else {
         const { data, error: insertError } = await supabase
           .from('trainings')

@@ -18,10 +18,10 @@ export default function RunnersPage() {
   const fetchRunners = useCallback(async () => {
     if (!profile) return;
 
+    // Todos los trainers/superadmin ven todos los runners
     const { data } = await supabase
       .from('users')
       .select('*')
-      .eq('trainer_id', profile.id)
       .eq('role', 'runner')
       .neq('status', 'deleted')
       .order('name');

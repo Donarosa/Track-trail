@@ -28,7 +28,6 @@ export default function TrainerDashboard() {
         supabase
           .from('users')
           .select('id', { count: 'exact', head: true })
-          .eq('trainer_id', trainerId)
           .eq('role', 'runner')
           .eq('status', 'active'),
         supabase

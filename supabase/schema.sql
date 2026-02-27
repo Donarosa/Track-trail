@@ -56,7 +56,7 @@ CREATE TABLE public.training_blocks (
 -- Asignaciones de entrenamiento a corredores
 CREATE TABLE public.runner_assignments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  training_id UUID NOT NULL REFERENCES public.trainings(id),
+  training_id UUID NOT NULL REFERENCES public.trainings(id) ON DELETE CASCADE,
   runner_id UUID NOT NULL REFERENCES public.users(id),
   status TEXT NOT NULL CHECK (status IN ('pending','completed')) DEFAULT 'pending',
   created_at TIMESTAMPTZ DEFAULT NOW()
@@ -65,8 +65,8 @@ CREATE TABLE public.runner_assignments (
 -- Resultados cargados por corredores
 CREATE TABLE public.runner_results (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  assignment_id UUID NOT NULL REFERENCES public.runner_assignments(id),
-  block_id UUID NOT NULL REFERENCES public.training_blocks(id),
+  assignment_id UUID NOT NULL REFERENCES public.runner_assignments(id) ON DELETE CASCADE,
+  block_id UUID NOT NULL REFERENCES public.training_blocks(id) ON DELETE CASCADE,
   value_distance NUMERIC,
   value_time NUMERIC,
   value_elevation NUMERIC,
@@ -163,10 +163,11 @@ CREATE POLICY "runner_users_select_own" ON public.users
     auth.uid() = id
   );
 
--- Trainers ven su perfil y sus runners
+-- Trainers ven su perfil y todos los runners
 CREATE POLICY "trainer_users_select" ON public.users
   FOR SELECT USING (
-    auth.uid() = id OR trainer_id = auth.uid()
+    auth.uid() = id
+    OR (public.auth_user_role() = 'trainer' AND role = 'runner')
   );
 
 -- Usuarios pueden actualizar su propio perfil
@@ -403,7 +404,7 @@ BEGIN
   IF v_role = 'runner' THEN
     SELECT id INTO v_trainer_id
     FROM public.users
-    WHERE role = 'trainer' AND status = 'active'
+    WHERE role IN ('trainer', 'superadmin') AND status = 'active'
     LIMIT 1;
   END IF;
 
