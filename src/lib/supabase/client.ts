@@ -11,7 +11,8 @@ export function createClient() {
         persistSession: true,
         autoRefreshToken: true,
         // Bypass Navigator Lock API (can hang if browser extensions freeze it)
-        lock: (_name: string, _acquireTimeout: number, fn: () => Promise<unknown>) => fn(),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        lock: (_name: string, _acquireTimeout: number, fn: () => Promise<any>) => fn(),
       },
     }
   );
