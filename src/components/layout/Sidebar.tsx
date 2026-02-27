@@ -17,7 +17,8 @@ const trainerNav: NavItem[] = [
 ];
 
 const runnerNav: NavItem[] = [
-  { href: '/dashboard', label: 'Dashboard', icon: '📊' },
+  { href: '/dashboard', label: 'Inicio', icon: '📊' },
+  { href: '/actividades', label: 'Mis Actividades', icon: '🏃' },
   { href: '/profile', label: 'Perfil', icon: '👤' },
 ];
 

@@ -32,7 +32,7 @@ export default function AppShell({ children, requireRole }: AppShellProps) {
     );
   }
 
-  const showSidebar = profile.role === 'trainer' || profile.role === 'superadmin';
+  const showSidebar = profile.role === 'trainer' || profile.role === 'superadmin' || profile.role === 'runner';
 
   return (
     <div className="min-h-dvh bg-background">
