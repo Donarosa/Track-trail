@@ -123,6 +123,34 @@ AS $$
   )
 $$;
 
+-- Helper: verificar si un runner tiene assignment para un training (evita recursión RLS trainings↔assignments)
+CREATE OR REPLACE FUNCTION public.runner_has_assignment(p_training_id UUID)
+RETURNS BOOLEAN
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.runner_assignments
+    WHERE training_id = p_training_id AND runner_id = auth.uid()
+  );
+$$;
+
+-- Helper: verificar si un runner es dueño de un assignment (evita recursión RLS results↔assignments)
+CREATE OR REPLACE FUNCTION public.runner_owns_assignment(p_assignment_id UUID)
+RETURNS BOOLEAN
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.runner_assignments
+    WHERE id = p_assignment_id AND runner_id = auth.uid()
+  );
+$$;
+
 -- ---------- USERS ----------
 
 -- Superadmin ve todo
@@ -169,10 +197,7 @@ CREATE POLICY "trainer_trainings_all" ON public.trainings
 -- Runners ven solo entrenamientos published que les fueron asignados
 CREATE POLICY "runner_trainings_select" ON public.trainings
   FOR SELECT USING (
-    status = 'published' AND EXISTS (
-      SELECT 1 FROM public.runner_assignments ra
-      WHERE ra.training_id = id AND ra.runner_id = auth.uid()
-    )
+    status = 'published' AND public.runner_has_assignment(id)
   );
 
 -- ---------- TRAINING_BLOCKS ----------
@@ -221,12 +246,7 @@ CREATE POLICY "superadmin_results_all" ON public.runner_results
 
 -- Runners CRUD sus propios resultados
 CREATE POLICY "runner_results_all" ON public.runner_results
-  FOR ALL USING (
-    EXISTS (
-      SELECT 1 FROM public.runner_assignments ra
-      WHERE ra.id = assignment_id AND ra.runner_id = auth.uid()
-    )
-  );
+  FOR ALL USING (public.runner_owns_assignment(assignment_id));
 
 -- Trainers ven resultados de sus runners
 CREATE POLICY "trainer_results_select" ON public.runner_results

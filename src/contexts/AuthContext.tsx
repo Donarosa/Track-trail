@@ -38,7 +38,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .eq('id', userId)
       .single();
     if (error) {
-      console.error('Error fetching profile:', error.message);
+      console.error('[Auth] Error fetching profile:', error.message);
     }
     setProfile(data);
   };
@@ -50,25 +50,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    const getSession = async () => {
-      console.log('[Auth] Getting session...');
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      console.log('[Auth] Session:', session ? 'found' : 'none', sessionError?.message || '');
-      setSession(session);
-      setAuthUser(session?.user ?? null);
-      if (session?.user) {
-        console.log('[Auth] Fetching profile for', session.user.id);
-        await fetchProfile(session.user.id);
-        console.log('[Auth] Profile fetched');
+    let mounted = true;
+
+    const init = async () => {
+      try {
+        const { data: { user }, error } = await supabase.auth.getUser();
+
+        if (!mounted) return;
+
+        if (error || !user) {
+          setLoading(false);
+          return;
+        }
+
+        setAuthUser(user);
+
+        await fetchProfile(user.id);
+      } catch {
+        // Silent catch — auth init failed
+      } finally {
+        if (mounted) setLoading(false);
       }
-      console.log('[Auth] Setting loading = false');
-      setLoading(false);
     };
 
-    getSession();
+    init();
 
+    // Listen for future auth changes (login, logout, token refresh)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
+        if (!mounted) return;
         setSession(session);
         setAuthUser(session?.user ?? null);
         if (session?.user) {
@@ -80,7 +90,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     );
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
