@@ -32,6 +32,8 @@ export default function RunnerDashboard() {
   const [trainingTop5, setTrainingTop5] = useState<TrainingRanking[]>([]);
   const [personalKm, setPersonalKm] = useState(0);
   const [personalCompleted, setPersonalCompleted] = useState(0);
+  const [personalKmTotal, setPersonalKmTotal] = useState(0);
+  const [personalCompletedTotal, setPersonalCompletedTotal] = useState(0);
 
   useEffect(() => {
     if (!profile) return;
@@ -71,29 +73,53 @@ export default function RunnerDashboard() {
         setTrainingTop5((trainData as TrainingRanking[]) || []);
       }
 
-      // Personal stats this month
-      const startOfMonth = new Date();
-      startOfMonth.setDate(1);
-      startOfMonth.setHours(0, 0, 0, 0);
-
-      const { data: personalResults } = await supabase
+      // Personal stats - total histórico
+      const { data: allResults } = await supabase
         .from('runner_results')
         .select('value_distance, assignment_id, runner_assignments!inner(runner_id)')
-        .eq('runner_assignments.runner_id', profile.id)
-        .gte('created_at', startOfMonth.toISOString());
+        .eq('runner_assignments.runner_id', profile.id);
 
-      const totalKm = (personalResults || []).reduce(
+      const totalKmAll = (allResults || []).reduce(
         (sum, r) => sum + (Number(r.value_distance) || 0),
         0
       );
-      setPersonalKm(totalKm);
+      setPersonalKmTotal(totalKmAll);
 
-      const { count } = await supabase
+      const { count: completedAll } = await supabase
         .from('runner_assignments')
         .select('id', { count: 'exact', head: true })
         .eq('runner_id', profile.id)
+        .eq('status', 'completed');
+
+      setPersonalCompletedTotal(completedAll ?? 0);
+
+      // Personal stats - mes en curso (filtra por fecha del entrenamiento)
+      const now = new Date();
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const startOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+      const startStr = startOfMonth.toISOString().split('T')[0];
+      const endStr = startOfNextMonth.toISOString().split('T')[0];
+
+      const { data: monthResults } = await supabase
+        .from('runner_results')
+        .select('value_distance, runner_assignments!inner(runner_id, trainings!inner(date))')
+        .eq('runner_assignments.runner_id', profile.id)
+        .gte('runner_assignments.trainings.date', startStr)
+        .lt('runner_assignments.trainings.date', endStr);
+
+      const totalKmMonth = (monthResults || []).reduce(
+        (sum, r) => sum + (Number(r.value_distance) || 0),
+        0
+      );
+      setPersonalKm(totalKmMonth);
+
+      const { count } = await supabase
+        .from('runner_assignments')
+        .select('id, trainings!inner(date)', { count: 'exact', head: true })
+        .eq('runner_id', profile.id)
         .eq('status', 'completed')
-        .gte('created_at', startOfMonth.toISOString());
+        .gte('trainings.date', startStr)
+        .lt('trainings.date', endStr);
 
       setPersonalCompleted(count ?? 0);
 
@@ -127,7 +153,7 @@ export default function RunnerDashboard() {
 
       {/* Mobile: personal stats on top */}
       <div className="md:hidden mb-4">
-        <PersonalStats kmMonth={personalKm} completedMonth={personalCompleted} />
+        <PersonalStats kmTotal={personalKmTotal} completedTotal={personalCompletedTotal} kmMonth={personalKm} completedMonth={personalCompleted} />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
@@ -180,7 +206,7 @@ export default function RunnerDashboard() {
 
         {/* Right column: Personal stats (desktop only) */}
         <div className="hidden md:block md:col-span-3">
-          <PersonalStats kmMonth={personalKm} completedMonth={personalCompleted} />
+          <PersonalStats kmTotal={personalKmTotal} completedTotal={personalCompletedTotal} kmMonth={personalKm} completedMonth={personalCompleted} />
         </div>
       </div>
     </div>

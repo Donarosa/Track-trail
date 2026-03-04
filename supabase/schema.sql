@@ -280,8 +280,8 @@ RETURNS TABLE (
   WHERE u.trainer_id = p_trainer_id
     AND u.status = 'active'
     AND rr.value_distance IS NOT NULL
-    AND rr.created_at >= date_trunc('month', CURRENT_DATE)
-    AND rr.created_at < date_trunc('month', CURRENT_DATE) + INTERVAL '1 month'
+    AND t.date >= date_trunc('month', CURRENT_DATE)
+    AND t.date < date_trunc('month', CURRENT_DATE) + INTERVAL '1 month'
   GROUP BY u.id, u.name, u.email
   ORDER BY total_km DESC
   LIMIT 5;
@@ -304,8 +304,8 @@ RETURNS TABLE (
   WHERE u.trainer_id = p_trainer_id
     AND u.status = 'active'
     AND ra.status = 'completed'
-    AND ra.created_at >= date_trunc('month', CURRENT_DATE)
-    AND ra.created_at < date_trunc('month', CURRENT_DATE) + INTERVAL '1 month'
+    AND t.date >= date_trunc('month', CURRENT_DATE)
+    AND t.date < date_trunc('month', CURRENT_DATE) + INTERVAL '1 month'
   GROUP BY u.id, u.name, u.email
   ORDER BY completed_count DESC
   LIMIT 5;
@@ -400,11 +400,12 @@ BEGIN
   END IF;
 
   -- Para runners, buscar un trainer activo al cual asignarlos
-  -- (se asigna al primer trainer disponible; se puede reasignar manualmente)
+  -- Prioriza trainers reales sobre superadmin
   IF v_role = 'runner' THEN
     SELECT id INTO v_trainer_id
     FROM public.users
     WHERE role IN ('trainer', 'superadmin') AND status = 'active'
+    ORDER BY (role = 'trainer') DESC
     LIMIT 1;
   END IF;
 
