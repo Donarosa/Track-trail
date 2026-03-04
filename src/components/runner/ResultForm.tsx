@@ -21,6 +21,25 @@ interface BlockResult {
   comment: string;
 }
 
+// Convierte minutos (número) a formato "H:M:S"
+const minutesToTimeParts = (totalMinutes: number): string => {
+  const totalSeconds = Math.round(totalMinutes * 60);
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const s = totalSeconds % 60;
+  return `${h}:${m}:${s}`;
+};
+
+// Convierte formato "H:M:S" a minutos (número)
+const timePartsToMinutes = (timeStr: string): number | null => {
+  const parts = timeStr.split(':');
+  const h = parseInt(parts[0]) || 0;
+  const m = parseInt(parts[1]) || 0;
+  const s = parseInt(parts[2]) || 0;
+  if (h === 0 && m === 0 && s === 0) return null;
+  return h * 60 + m + s / 60;
+};
+
 export default function ResultForm({ assignmentId, blocks, existingResults, onComplete }: ResultFormProps) {
   const supabase = createClient();
 
@@ -30,7 +49,7 @@ export default function ResultForm({ assignmentId, blocks, existingResults, onCo
       return {
         block_id: block.id,
         value_distance: existing?.value_distance?.toString() ?? '',
-        value_time: existing?.value_time?.toString() ?? '',
+        value_time: existing?.value_time ? minutesToTimeParts(existing.value_time) : '',
         comment: existing?.comment ?? '',
       };
     });
@@ -43,6 +62,25 @@ export default function ResultForm({ assignmentId, blocks, existingResults, onCo
     const newResults = [...results];
     newResults[index] = { ...newResults[index], [field]: value };
     setResults(newResults);
+  };
+
+  const getTimePart = (timeStr: string, part: 'h' | 'm' | 's'): string => {
+    if (!timeStr) return '';
+    const parts = timeStr.split(':');
+    if (part === 'h') return parts[0] || '';
+    if (part === 'm') return parts[1] || '';
+    return parts[2] || '';
+  };
+
+  const updateTimePart = (index: number, part: 'h' | 'm' | 's', value: string) => {
+    const current = results[index]?.value_time || '::';
+    const parts = current.split(':');
+    if (part === 'h') parts[0] = value;
+    if (part === 'm') parts[1] = value;
+    if (part === 's') parts[2] = value;
+    // Asegurar que siempre haya 3 partes
+    while (parts.length < 3) parts.push('');
+    updateResult(index, 'value_time', parts.join(':'));
   };
 
   const handleSubmit = async () => {
@@ -59,7 +97,7 @@ export default function ResultForm({ assignmentId, blocks, existingResults, onCo
           assignment_id: assignmentId,
           block_id: r.block_id,
           value_distance: r.value_distance ? parseFloat(r.value_distance) : null,
-          value_time: r.value_time ? parseFloat(r.value_time) : null,
+          value_time: r.value_time ? timePartsToMinutes(r.value_time) : null,
           comment: r.comment || null,
         }));
 
@@ -111,15 +149,49 @@ export default function ResultForm({ assignmentId, blocks, existingResults, onCo
             )}
 
             {(block.input_type === 'distance_time' || block.input_type === 'time') && (
-              <Input
-                label="Tiempo (minutos)"
-                type="number"
-                step="0.1"
-                min="0"
-                placeholder="0.0"
-                value={results[index]?.value_time ?? ''}
-                onChange={(e) => updateResult(index, 'value_time', e.target.value)}
-              />
+              <div className="sm:col-span-2">
+                <label className="text-sm font-medium text-foreground mb-1 block">Tiempo</label>
+                <div className="flex items-end gap-2">
+                  <div className="flex-1">
+                    <span className="text-xs text-foreground/50 block text-center mb-1">Horas</span>
+                    <input
+                      type="number"
+                      min="0"
+                      max="99"
+                      placeholder="00"
+                      className="w-full px-3 py-2 rounded-lg border border-highlight/50 bg-tt-white text-foreground text-center focus:outline-none focus:ring-2 focus:ring-secondary"
+                      value={getTimePart(results[index]?.value_time ?? '', 'h')}
+                      onChange={(e) => updateTimePart(index, 'h', e.target.value)}
+                    />
+                  </div>
+                  <span className="text-lg font-bold text-foreground/50 pb-2">:</span>
+                  <div className="flex-1">
+                    <span className="text-xs text-foreground/50 block text-center mb-1">Minutos</span>
+                    <input
+                      type="number"
+                      min="0"
+                      max="59"
+                      placeholder="00"
+                      className="w-full px-3 py-2 rounded-lg border border-highlight/50 bg-tt-white text-foreground text-center focus:outline-none focus:ring-2 focus:ring-secondary"
+                      value={getTimePart(results[index]?.value_time ?? '', 'm')}
+                      onChange={(e) => updateTimePart(index, 'm', e.target.value)}
+                    />
+                  </div>
+                  <span className="text-lg font-bold text-foreground/50 pb-2">:</span>
+                  <div className="flex-1">
+                    <span className="text-xs text-foreground/50 block text-center mb-1">Segundos</span>
+                    <input
+                      type="number"
+                      min="0"
+                      max="59"
+                      placeholder="00"
+                      className="w-full px-3 py-2 rounded-lg border border-highlight/50 bg-tt-white text-foreground text-center focus:outline-none focus:ring-2 focus:ring-secondary"
+                      value={getTimePart(results[index]?.value_time ?? '', 's')}
+                      onChange={(e) => updateTimePart(index, 's', e.target.value)}
+                    />
+                  </div>
+                </div>
+              </div>
             )}
 
             {block.input_type === 'comment' && (

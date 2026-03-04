@@ -164,7 +164,13 @@ export default function TrainingDetailPage() {
                         <span className="text-sm text-foreground/70">
                           {result?.value_distance && `${result.value_distance} km`}
                           {result?.value_distance && result?.value_time && ' · '}
-                          {result?.value_time && `${result.value_time} min`}
+                          {result?.value_time && (() => {
+                            const totalSeconds = Math.round(result.value_time * 60);
+                            const h = Math.floor(totalSeconds / 3600);
+                            const m = Math.floor((totalSeconds % 3600) / 60);
+                            const s = totalSeconds % 60;
+                            return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+                          })()}
                           {result?.comment && result.comment}
                           {!result && '—'}
                         </span>
