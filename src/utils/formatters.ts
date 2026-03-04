@@ -19,6 +19,14 @@ export function formatTime(minutes: number): string {
   return `${m} min`;
 }
 
+export function formatTimeHMS(minutes: number): string {
+  const totalSeconds = Math.round(minutes * 60);
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const s = totalSeconds % 60;
+  return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+}
+
 export function formatPace(km: number, minutes: number): string {
   if (km <= 0) return '—';
   const pace = minutes / km;

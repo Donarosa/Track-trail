@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { createClient } from '@/lib/supabase/client';
 import Card from '@/components/ui/Card';
 import Spinner from '@/components/ui/Spinner';
+import CompletedActivitiesTable from '@/components/trainer/CompletedActivitiesTable';
 
 interface Stats {
   totalRunners: number;
@@ -74,6 +75,8 @@ export default function TrainerDashboard() {
           <p className="text-3xl font-bold text-accent mt-1">{stats.completedThisMonth}</p>
         </Card>
       </div>
+
+      <CompletedActivitiesTable />
     </div>
   );
 }
