@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import AppShell from '@/components/layout/AppShell';
 import TrainingForm from '@/components/trainer/TrainingForm';
@@ -10,6 +10,7 @@ import type { Training, TrainingBlock } from '@/types/database';
 
 export default function EditTrainingPage() {
   const params = useParams();
+  const router = useRouter();
   const id = params.id as string;
   const [training, setTraining] = useState<Training | null>(null);
   const [blocks, setBlocks] = useState<TrainingBlock[]>([]);
@@ -41,10 +42,7 @@ export default function EditTrainingPage() {
       {loading ? (
         <Spinner className="py-12" />
       ) : training ? (
-        <>
-          <h1 className="text-2xl font-bold text-foreground mb-6">Editar Entrenamiento</h1>
-          <TrainingForm training={training} existingBlocks={blocks} />
-        </>
+        <TrainingForm training={training} existingBlocks={blocks} onExit={() => router.push('/trainings')} />
       ) : (
         <p className="text-center text-foreground/60 py-12">Entrenamiento no encontrado.</p>
       )}
