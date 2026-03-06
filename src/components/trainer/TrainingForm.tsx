@@ -237,7 +237,7 @@ export default function TrainingForm({ training, existingBlocks, trainingType, t
               rows={2}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Breve descripción del entrenamiento"
+              placeholder="Descripción completa del ejercicio. Ej Vuelta larga: Salimos desde la plaza, bajamos por butori, costanera, puente del ancla, calle Alem, Sierras Hotel, Museo Dubois, Gym. Aprox 6.30km Vuelta corta: salimos desde la plaza, bajamos por butori, costanera, puente del ancla, Gym. Aprox 4.0km"
               className="w-full px-3 py-2 rounded-lg border border-highlight/50 bg-tt-white text-foreground placeholder:text-foreground/40 focus:outline-none focus:ring-2 focus:ring-secondary focus:border-transparent transition-all duration-200 resize-y"
             />
           </div>
