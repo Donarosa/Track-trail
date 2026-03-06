@@ -65,11 +65,11 @@ export default function ResultForm({ assignmentId, blocks, existingResults, onCo
   };
 
   const getTimePart = (timeStr: string, part: 'h' | 'm' | 's'): string => {
-    if (!timeStr) return '';
+    if (!timeStr) return '0';
     const parts = timeStr.split(':');
-    if (part === 'h') return parts[0] || '';
-    if (part === 'm') return parts[1] || '';
-    return parts[2] || '';
+    if (part === 'h') return parts[0] || '0';
+    if (part === 'm') return parts[1] || '0';
+    return parts[2] || '0';
   };
 
   const updateTimePart = (index: number, part: 'h' | 'm' | 's', value: string) => {
