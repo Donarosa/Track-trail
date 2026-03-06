@@ -9,14 +9,49 @@ import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import BlockEditor, { type BlockData } from '@/components/trainer/BlockEditor';
 import type { Training, TrainingBlock } from '@/types/database';
-// BlockInputType derivado automáticamente de toggles
 
 interface TrainingFormProps {
   training?: Training;
   existingBlocks?: TrainingBlock[];
+  trainingType?: string;
+  onExit?: () => void;
 }
 
-export default function TrainingForm({ training, existingBlocks }: TrainingFormProps) {
+function getInitialBlocks(trainingType?: string): BlockData[] {
+  switch (trainingType) {
+    case 'cuestas':
+      return [
+        { block_name: 'Transición', has_distance: true, has_time: true, has_elevation: false, order_index: 0 },
+        { block_name: '', has_distance: true, has_time: true, has_elevation: false, order_index: 1 },
+      ];
+    case 'fondo':
+    case 'libre':
+      return [
+        { block_name: '', has_distance: true, has_time: true, has_elevation: true, order_index: 0 },
+      ];
+    default: // pasadas, cambio_ritmo, or no type
+      return [
+        { block_name: '', has_distance: true, has_time: true, has_elevation: false, order_index: 0 },
+      ];
+  }
+}
+
+function getBlockPlaceholder(trainingType: string | undefined, blockIndex: number): string {
+  switch (trainingType) {
+    case 'pasadas':
+      return `Pasada ${blockIndex + 1}`;
+    case 'cuestas':
+      if (blockIndex === 0) return 'Transición';
+      return `Cuesta ${blockIndex}`;
+    case 'cambio_ritmo':
+      if (blockIndex === 0) return 'Primer pasada';
+      return `Bloque ${blockIndex + 1}`;
+    default:
+      return 'Ej: Calentamiento';
+  }
+}
+
+export default function TrainingForm({ training, existingBlocks, trainingType, onExit }: TrainingFormProps) {
   const { profile } = useAuth();
   const router = useRouter();
   const supabase = createClient();
@@ -32,9 +67,7 @@ export default function TrainingForm({ training, existingBlocks }: TrainingFormP
       has_time: b.has_time ?? false,
       has_elevation: b.has_elevation ?? false,
       order_index: b.order_index,
-    })) ?? [
-      { block_name: '', has_distance: true, has_time: true, has_elevation: false, order_index: 0 },
-    ]
+    })) ?? getInitialBlocks(trainingType)
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -42,9 +75,11 @@ export default function TrainingForm({ training, existingBlocks }: TrainingFormP
   const isEditing = !!training;
 
   const addBlock = () => {
+    const newIndex = blocks.length;
+    const useElevation = trainingType === 'fondo' || trainingType === 'libre';
     setBlocks([
       ...blocks,
-      { block_name: '', has_distance: true, has_time: true, has_elevation: false, order_index: blocks.length },
+      { block_name: '', has_distance: true, has_time: true, has_elevation: useElevation, order_index: newIndex },
     ]);
   };
 
@@ -85,7 +120,6 @@ export default function TrainingForm({ training, existingBlocks }: TrainingFormP
       let trainingId = training?.id;
 
       if (isEditing && training) {
-        // Si estamos editando un entrenamiento ya publicado, incrementar version
         const newVersion = training.status === 'published' ? training.version + 1 : training.version;
 
         const { error: updateError } = await supabase
@@ -100,7 +134,6 @@ export default function TrainingForm({ training, existingBlocks }: TrainingFormP
 
         if (updateError) throw updateError;
 
-        // Eliminar bloques anteriores y recrear
         const { error: deleteError } = await supabase
           .from('training_blocks')
           .delete()
@@ -124,9 +157,7 @@ export default function TrainingForm({ training, existingBlocks }: TrainingFormP
         trainingId = data.id;
       }
 
-      // Insertar bloques
       const blocksToInsert = blocks.map((b, i) => {
-        // Derivar input_type para backward compat
         let input_type = 'comment';
         if (b.has_distance && b.has_time) input_type = 'distance_time';
         else if (b.has_distance) input_type = 'distance';
@@ -150,7 +181,6 @@ export default function TrainingForm({ training, existingBlocks }: TrainingFormP
 
       if (blocksError) throw blocksError;
 
-      // Publicar si se solicitó
       if (publish && trainingId) {
         const { error: publishError } = await supabase.rpc('publish_training', {
           p_training_id: trainingId,
@@ -172,6 +202,24 @@ export default function TrainingForm({ training, existingBlocks }: TrainingFormP
 
   return (
     <div className="space-y-6">
+      {/* Botón salir */}
+      {onExit && (
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-foreground">
+            {isEditing ? 'Editar Entrenamiento' : 'Nuevo Entrenamiento'}
+          </h1>
+          <button
+            onClick={onExit}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-foreground/60 hover:text-foreground rounded-lg hover:bg-highlight/10 transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+            Salir
+          </button>
+        </div>
+      )}
+
       <Card padding="lg">
         <div className="space-y-4">
           <Input
@@ -205,12 +253,7 @@ export default function TrainingForm({ training, existingBlocks }: TrainingFormP
       </Card>
 
       <div>
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-semibold text-foreground">Bloques</h2>
-          <Button type="button" variant="secondary" size="sm" onClick={addBlock}>
-            + Agregar Bloque
-          </Button>
-        </div>
+        <h2 className="text-lg font-semibold text-foreground mb-3">Bloques</h2>
 
         <div className="space-y-3">
           {blocks.map((block, index) => (
@@ -224,8 +267,15 @@ export default function TrainingForm({ training, existingBlocks }: TrainingFormP
               onMoveDown={(i) => moveBlock(i, 'down')}
               isFirst={index === 0}
               isLast={index === blocks.length - 1}
+              placeholder={getBlockPlaceholder(trainingType, index)}
             />
           ))}
+        </div>
+
+        <div className="mt-4">
+          <Button type="button" variant="secondary" size="sm" onClick={addBlock} className="w-full sm:w-auto">
+            + Agregar Bloque
+          </Button>
         </div>
       </div>
 
@@ -233,7 +283,7 @@ export default function TrainingForm({ training, existingBlocks }: TrainingFormP
         <p className="text-sm text-danger bg-danger/10 rounded-lg px-3 py-2">{error}</p>
       )}
 
-      <div className="flex gap-3">
+      <div className="flex gap-3 justify-center">
         <Button
           onClick={() => handleSave(false)}
           loading={saving}

@@ -21,6 +21,7 @@ interface BlockEditorProps {
   onMoveDown: (index: number) => void;
   isFirst: boolean;
   isLast: boolean;
+  placeholder?: string;
 }
 
 function Toggle({
@@ -65,6 +66,7 @@ export default function BlockEditor({
   onMoveDown,
   isFirst,
   isLast,
+  placeholder = 'Ej: Calentamiento',
 }: BlockEditorProps) {
   const update = (field: keyof BlockData, value: string | boolean) => {
     onChange(index, { ...block, [field]: value });
@@ -105,7 +107,7 @@ export default function BlockEditor({
             label="Nombre del bloque"
             value={block.block_name}
             onChange={(e) => update('block_name', e.target.value)}
-            placeholder="Ej: Calentamiento"
+            placeholder={placeholder}
             required
           />
         </div>
