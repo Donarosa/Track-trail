@@ -37,29 +37,36 @@ interface CompletedRow {
 
 const PAGE_SIZE = 10;
 
+type SortField = 'date' | 'runner';
+type SortDir = 'asc' | 'desc';
+
 export default function CompletedActivitiesTable() {
   const { profile } = useAuth();
   const supabase = createClient();
-  const [rows, setRows] = useState<CompletedRow[]>([]);
+  const [allRows, setAllRows] = useState<CompletedRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
-  const [totalCount, setTotalCount] = useState(0);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const [search, setSearch] = useState('');
+  const [sortField, setSortField] = useState<SortField>('date');
+  const [sortDir, setSortDir] = useState<SortDir>('desc');
 
   useEffect(() => {
     if (!profile) return;
     fetchData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profile, page]);
+  }, [profile]);
+
+  // Reset page when search or sort changes
+  useEffect(() => {
+    setPage(0);
+  }, [search, sortField, sortDir]);
 
   const fetchData = async () => {
     if (!profile) return;
     setLoading(true);
 
-    const from = page * PAGE_SIZE;
-    const to = from + PAGE_SIZE - 1;
-
-    const { data, count } = await supabase
+    const { data } = await supabase
       .from('runner_assignments')
       .select(`
         id,
@@ -67,11 +74,10 @@ export default function CompletedActivitiesTable() {
         user:users!runner_assignments_runner_id_fkey(name, email),
         training:trainings!inner(title, date, trainer_id, training_blocks(id, block_name, order_index)),
         runner_results(id, block_id, value_distance, value_time, value_elevation, comment)
-      `, { count: 'exact' })
+      `)
       .eq('status', 'completed')
       .eq('training.trainer_id', profile.id)
-      .order('created_at', { ascending: false })
-      .range(from, to);
+      .order('created_at', { ascending: false });
 
     if (data) {
       const mapped: CompletedRow[] = data.map((item: Record<string, unknown>) => {
@@ -114,11 +120,56 @@ export default function CompletedActivitiesTable() {
         };
       });
 
-      setRows(mapped);
-      setTotalCount(count ?? 0);
+      setAllRows(mapped);
     }
 
     setLoading(false);
+  };
+
+  // Filter + sort + paginate
+  const filtered = allRows.filter((row) => {
+    if (!search) return true;
+    const q = search.toLowerCase();
+    return row.runner_name.toLowerCase().includes(q) || row.training_title.toLowerCase().includes(q);
+  });
+
+  const sorted = [...filtered].sort((a, b) => {
+    const dir = sortDir === 'asc' ? 1 : -1;
+    if (sortField === 'date') {
+      return (a.training_date > b.training_date ? 1 : -1) * dir;
+    }
+    return a.runner_name.localeCompare(b.runner_name) * dir;
+  });
+
+  const totalCount = sorted.length;
+  const rows = sorted.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
+  const toggleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortField(field);
+      setSortDir(field === 'date' ? 'desc' : 'asc');
+    }
+  };
+
+  const SortIcon = ({ field }: { field: SortField }) => {
+    if (sortField !== field) {
+      return (
+        <svg className="w-3 h-3 ml-1 inline text-foreground/30" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+        </svg>
+      );
+    }
+    return sortDir === 'asc' ? (
+      <svg className="w-3 h-3 ml-1 inline text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
+      </svg>
+    ) : (
+      <svg className="w-3 h-3 ml-1 inline text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+      </svg>
+    );
   };
 
   const toggleExpand = (id: string) => {
@@ -132,21 +183,39 @@ export default function CompletedActivitiesTable() {
 
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
-  if (loading && rows.length === 0) return <Spinner className="py-8" />;
+  if (loading && allRows.length === 0) return <Spinner className="py-8" />;
 
   return (
     <Card padding="sm">
-      <h2 className="text-lg font-semibold text-foreground px-3 py-2">Actividades Completadas</h2>
+      <div className="flex items-center justify-between px-3 py-2 gap-3">
+        <h2 className="text-lg font-semibold text-foreground shrink-0">Actividades Completadas</h2>
+        <div className="relative max-w-xs w-full">
+          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/40" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <input
+            type="text"
+            placeholder="Buscar runner o actividad..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-9 pr-3 py-1.5 text-sm rounded-lg border border-highlight/50 bg-tt-white text-foreground focus:outline-none focus:ring-2 focus:ring-secondary"
+          />
+        </div>
+      </div>
 
       {/* Desktop table */}
       <div className="hidden md:block overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-highlight/30 text-foreground/60">
-              <th className="text-left py-2 px-3 font-medium"></th>
-              <th className="text-left py-2 px-3 font-medium">Runner</th>
+              <th className="text-left py-2 px-3 font-medium w-8"></th>
+              <th className="text-left py-2 px-3 font-medium cursor-pointer select-none hover:text-foreground" onClick={() => toggleSort('runner')}>
+                Runner<SortIcon field="runner" />
+              </th>
               <th className="text-left py-2 px-3 font-medium">Actividad</th>
-              <th className="text-left py-2 px-3 font-medium">Fecha</th>
+              <th className="text-left py-2 px-3 font-medium cursor-pointer select-none hover:text-foreground" onClick={() => toggleSort('date')}>
+                Fecha<SortIcon field="date" />
+              </th>
               <th className="text-right py-2 px-3 font-medium">Km</th>
               <th className="text-right py-2 px-3 font-medium">Tiempo</th>
               <th className="text-right py-2 px-3 font-medium">Altimetría</th>
@@ -216,6 +285,22 @@ export default function CompletedActivitiesTable() {
             })}
           </tbody>
         </table>
+      </div>
+
+      {/* Mobile sort buttons */}
+      <div className="md:hidden flex gap-2 px-2 mb-2">
+        <button
+          onClick={() => toggleSort('date')}
+          className={`flex items-center gap-1 px-2.5 py-1 text-xs rounded-full border ${sortField === 'date' ? 'border-primary/50 bg-primary/10 text-primary' : 'border-highlight/30 text-foreground/60'}`}
+        >
+          Fecha<SortIcon field="date" />
+        </button>
+        <button
+          onClick={() => toggleSort('runner')}
+          className={`flex items-center gap-1 px-2.5 py-1 text-xs rounded-full border ${sortField === 'runner' ? 'border-primary/50 bg-primary/10 text-primary' : 'border-highlight/30 text-foreground/60'}`}
+        >
+          Runner<SortIcon field="runner" />
+        </button>
       </div>
 
       {/* Mobile cards */}
