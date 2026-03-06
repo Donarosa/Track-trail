@@ -32,18 +32,16 @@ export default function NewTrainingPage() {
 
   return (
     <AppShell requireRole={['trainer', 'superadmin']}>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-foreground">Nuevo Entrenamiento</h1>
-        <button
-          onClick={() => router.push('/trainings')}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-foreground/60 hover:text-foreground rounded-lg hover:bg-highlight/10 transition-colors"
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-          </svg>
-          Salir
-        </button>
-      </div>
+      <button
+        onClick={() => router.push('/trainings')}
+        className="flex items-center gap-1.5 mb-4 text-sm text-foreground/60 hover:text-foreground transition-colors"
+      >
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+        </svg>
+        Volver
+      </button>
+      <h1 className="text-2xl font-bold text-foreground mb-6">Nuevo Entrenamiento</h1>
 
       <p className="text-foreground/60 mb-6">Elegí el tipo de entrenamiento</p>
 
