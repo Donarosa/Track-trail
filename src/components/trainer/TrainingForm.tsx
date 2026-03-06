@@ -14,6 +14,7 @@ interface TrainingFormProps {
   training?: Training;
   existingBlocks?: TrainingBlock[];
   trainingType?: string;
+  trainingTypeLabel?: string;
   onExit?: () => void;
 }
 
@@ -51,7 +52,7 @@ function getBlockPlaceholder(trainingType: string | undefined, blockIndex: numbe
   }
 }
 
-export default function TrainingForm({ training, existingBlocks, trainingType, onExit }: TrainingFormProps) {
+export default function TrainingForm({ training, existingBlocks, trainingType, trainingTypeLabel, onExit }: TrainingFormProps) {
   const { profile } = useAuth();
   const router = useRouter();
   const supabase = createClient();
@@ -206,7 +207,7 @@ export default function TrainingForm({ training, existingBlocks, trainingType, o
       {onExit && (
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold text-foreground">
-            {isEditing ? 'Editar Entrenamiento' : 'Nuevo Entrenamiento'}
+            {isEditing ? 'Editar Entrenamiento' : `Nuevo ${trainingTypeLabel || 'Entrenamiento'}`}
           </h1>
           <button
             onClick={onExit}

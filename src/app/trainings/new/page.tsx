@@ -23,6 +23,7 @@ export default function NewTrainingPage() {
       <AppShell requireRole={['trainer', 'superadmin']}>
         <TrainingForm
           trainingType={selectedType}
+          trainingTypeLabel={TRAINING_TYPES.find((t) => t.id === selectedType)?.label}
           onExit={() => setSelectedType(null)}
         />
       </AppShell>
